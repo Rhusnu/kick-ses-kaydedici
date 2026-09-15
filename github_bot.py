@@ -8,7 +8,7 @@ USERNAME = os.getenv("KICK_USERNAME")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-CHUNK_DURATION = 2700  # 45 dakika
+CHUNK_DURATION = 60  # 45 dakika
 MAX_RUN_TIME = 19800   # 5.5 saat
 
 def send_to_telegram(file_path):
