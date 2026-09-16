@@ -15,14 +15,12 @@ def send_telegram_message(text):
 def upload_to_gofile(file_path):
     print("Gofile sunucusu araniyor...")
     try:
-        # En uygun sunucuyu bul
         server_res = requests.get("https://api.gofile.io/servers").json()
         if server_res["status"] != "ok":
             return None
         server = server_res["data"]["servers"][0]["name"]
         
-        print(f"Sunucu bulundu: {server}. Yukleme basliyor (Bu islem dosya boyutuna gore surebilir)...")
-        # Dosyayı yükle
+        print(f"Sunucu bulundu: {server}. Yukleme basliyor...")
         url = f"https://{server}.gofile.io/contents/uploadfile"
         with open(file_path, 'rb') as f:
             upload_res = requests.post(url, files={'file': f}).json()
@@ -53,12 +51,11 @@ def main():
         sys.exit(0)
         
     print("Yayin acik! Kayit basliyor...")
-    send_telegram_message(f"🔴 {USERNAME} yayina girdi! Kayit (360p Video) basladi. Yayin bitince Gofile linki buraya gelecek.")
+    send_telegram_message(f"🔴 {USERNAME} yayina girdi! Kayit (360p Video - 60 SANIYELIK TEST) basladi.")
     
     filename = f"{USERNAME}_yayin.mp4"
     
-    # yt-dlp ile 360p kalitesinde kaydet (Yayin bitene kadar bekler)
-       cmd = [
+    cmd = [
         "yt-dlp",
         "-f", "best[height<=360]",
         "--downloader", "ffmpeg",
@@ -68,13 +65,12 @@ def main():
     ]
     subprocess.run(cmd)
     
-    # Kayit bittiginde (Yayin kapandiginda) buraya gecer
     if os.path.exists(filename) and os.path.getsize(filename) > 100000:
         print("Kayit bitti. Gofile'a yukleniyor...")
         gofile_link = upload_to_gofile(filename)
         
         if gofile_link:
-            msg = f"✅ Yayin bitti ve sisteme yuklendi!\n\nIzlemek veya Indirmek icin tikla:\n👉 {gofile_link}"
+            msg = f"✅ Test kaydi bitti ve sisteme yuklendi!\n\nIzlemek veya Indirmek icin tikla:\n👉 {gofile_link}"
             send_telegram_message(msg)
         else:
             send_telegram_message("❌ Yayin bitti ama Gofile'a yuklenirken bir hata olustu.")
