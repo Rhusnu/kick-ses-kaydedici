@@ -32,10 +32,10 @@ def upload_to_gofile(file_path):
     return None
 
 def is_live():
-    cmd = ["yt-dlp", "--print", "is_live", f"https://kick.com/{USERNAME}"]
+    cmd = ["yt-dlp", "--simulate", f"https://kick.com/{USERNAME}"]
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        return "is_live" in res.stdout
+        res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return res.returncode == 0
     except:
         return False
 
