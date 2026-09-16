@@ -58,9 +58,11 @@ def main():
     filename = f"{USERNAME}_yayin.mp4"
     
     # yt-dlp ile 360p kalitesinde kaydet (Yayin bitene kadar bekler)
-    cmd = [
+       cmd = [
         "yt-dlp",
         "-f", "best[height<=360]",
+        "--downloader", "ffmpeg",
+        "--downloader-args", "ffmpeg:-t 60",
         "-o", filename,
         f"https://kick.com/{USERNAME}"
     ]
