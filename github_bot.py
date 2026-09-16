@@ -51,15 +51,14 @@ def main():
         sys.exit(0)
         
     print("Yayin acik! Kayit basliyor...")
-    send_telegram_message(f"🔴 {USERNAME} yayina girdi! Kayit (360p Video - 60 SANIYELIK TEST) basladi.")
+    send_telegram_message(f"🔴 {USERNAME} yayina girdi! 360p Video kaydi basladi, yayin bittiginde link buraya gelecek.")
     
     filename = f"{USERNAME}_yayin.mp4"
     
+    # yt-dlp yayin bitene kadar kaydetmeye devam eder
     cmd = [
         "yt-dlp",
         "-f", "best[height<=360]",
-        "--downloader", "ffmpeg",
-        "--downloader-args", "ffmpeg:-t 60",
         "-o", filename,
         f"https://kick.com/{USERNAME}"
     ]
@@ -70,7 +69,7 @@ def main():
         gofile_link = upload_to_gofile(filename)
         
         if gofile_link:
-            msg = f"✅ Test kaydi bitti ve sisteme yuklendi!\n\nIzlemek veya Indirmek icin tikla:\n👉 {gofile_link}"
+            msg = f"✅ Yayin bitti ve sisteme yuklendi!\n\nIzlemek veya Indirmek icin tikla:\n👉 {gofile_link}"
             send_telegram_message(msg)
         else:
             send_telegram_message("❌ Yayin bitti ama Gofile'a yuklenirken bir hata olustu.")
