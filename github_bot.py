@@ -1,5 +1,4 @@
 import subprocess
-import time
 import sys
 import os
 import requests
@@ -8,63 +7,77 @@ USERNAME = os.getenv("KICK_USERNAME")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-CHUNK_DURATION = 60  # 45 dakika
-MAX_RUN_TIME = 19800   # 5.5 saat
+def send_telegram_message(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {'chat_id': TELEGRAM_CHAT_ID, 'text': text}
+    requests.post(url, data=data)
 
-def send_to_telegram(file_path):
-    print(f"Telegram'a gonderiliyor: {file_path}")
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendAudio"
+def upload_to_gofile(file_path):
+    print("Gofile sunucusu araniyor...")
     try:
-        with open(file_path, 'rb') as audio:
-            files = {'audio': audio}
-            data = {'chat_id': TELEGRAM_CHAT_ID, 'caption': f"🎤 {USERNAME} Kick Yayini"}
-            response = requests.post(url, files=files, data=data)
-            if response.status_code == 200:
-                print("Basariyla gonderildi!")
-            else:
-                print(f"Hata: {response.text}")
+        # En uygun sunucuyu bul
+        server_res = requests.get("https://api.gofile.io/servers").json()
+        if server_res["status"] != "ok":
+            return None
+        server = server_res["data"]["servers"][0]["name"]
+        
+        print(f"Sunucu bulundu: {server}. Yukleme basliyor (Bu islem dosya boyutuna gore surebilir)...")
+        # Dosyayı yükle
+        url = f"https://{server}.gofile.io/contents/uploadfile"
+        with open(file_path, 'rb') as f:
+            upload_res = requests.post(url, files={'file': f}).json()
+        
+        if upload_res["status"] == "ok":
+            return upload_res["data"]["downloadPage"]
     except Exception as e:
-        print(f"Gonderim sirasinda hata: {e}")
+        print(f"Gofile yukleme hatasi: {e}")
+    return None
 
-def get_stream_url():
-    cmd = ["yt-dlp", "--get-url", f"https://kick.com/{USERNAME}"]
+def is_live():
+    cmd = ["yt-dlp", "--print", "is_live", f"https://kick.com/{USERNAME}"]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError:
-        return None
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        return "is_live" in res.stdout
+    except:
+        return False
 
 def main():
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Sifreler (Secrets) bulunamadi!")
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID or not USERNAME:
+        print("Sifreler eksik!")
         sys.exit(1)
 
-    start_time = time.time()
-    chunk_index = 1
-    while True:
-        if time.time() - start_time >= MAX_RUN_TIME:
-            break
-
-        stream_url = get_stream_url()
-        if not stream_url:
-            time.sleep(60)
-            continue
-
-        filename = f"{USERNAME}_yayin_parca_{chunk_index}.m4a"
-        ffmpeg_cmd = [
-            "ffmpeg", "-y", "-i", stream_url, 
-            "-t", str(CHUNK_DURATION), 
-            "-c:a", "aac", "-vn", filename
-        ]
+    print(f"{USERNAME} yayin durumu kontrol ediliyor...")
+    
+    if not is_live():
+        print("Yayin kapali. Islem bitiriliyor.")
+        sys.exit(0)
         
-        subprocess.run(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print("Yayin acik! Kayit basliyor...")
+    send_telegram_message(f"🔴 {USERNAME} yayina girdi! Kayit (360p Video) basladi. Yayin bitince Gofile linki buraya gelecek.")
+    
+    filename = f"{USERNAME}_yayin.mp4"
+    
+    # yt-dlp ile 360p kalitesinde kaydet (Yayin bitene kadar bekler)
+    cmd = [
+        "yt-dlp",
+        "-f", "best[height<=360]",
+        "-o", filename,
+        f"https://kick.com/{USERNAME}"
+    ]
+    subprocess.run(cmd)
+    
+    # Kayit bittiginde (Yayin kapandiginda) buraya gecer
+    if os.path.exists(filename) and os.path.getsize(filename) > 100000:
+        print("Kayit bitti. Gofile'a yukleniyor...")
+        gofile_link = upload_to_gofile(filename)
         
-        if os.path.exists(filename) and os.path.getsize(filename) > 1000:
-            send_to_telegram(filename)
-            os.remove(filename)
-            chunk_index += 1
+        if gofile_link:
+            msg = f"✅ Yayin bitti ve sisteme yuklendi!\n\nIzlemek veya Indirmek icin tikla:\n👉 {gofile_link}"
+            send_telegram_message(msg)
         else:
-            time.sleep(60)
+            send_telegram_message("❌ Yayin bitti ama Gofile'a yuklenirken bir hata olustu.")
+    else:
+        send_telegram_message("❌ Yayin sirasinda bir kopma oldu veya dosya kaydedilemedi.")
 
 if __name__ == "__main__":
     main()
